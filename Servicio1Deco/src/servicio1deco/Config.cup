@@ -1,0 +1,551 @@
+/*­­­­Sección de declaraciones package e imports­­­­­­­­­*/
+package servicio1deco;
+import java.util.Stack;
+import java.util.LinkedList;
+import java_cup.runtime.*;
+/*­­­­ Sección componentes de código de usuario ­­­­*/
+action code {:
+public Stack<String> Lbreak=new Stack<String>();
+public Stack<String> Lcontinue=new Stack<String>();
+public LinkedList<Simbolo> Tabla_Simbolos=new LinkedList<Simbolo>();
+public int tmp=1;int l=1;int pos=0;String amb="global";
+public String salida="";String nombreprograma="";
+public Logica LogXor;
+public class Logica
+{
+	String Verdaderas , Falsas , texto;
+	Logica(String v , String f , String t)
+	{
+		Verdaderas=v;Falsas=f;texto=t;
+	}
+	Logica(){Verdaderas="";Falsas="";texto="";}
+}
+public class Simbolo
+{
+	String id;int pos;String ambito="";String rol="";String tipo;String valor;
+	int dim;public LinkedList<Integer> inferiores=new LinkedList<Integer>();public LinkedList<Integer> superiores= new LinkedList<Integer>();
+	int tam=1;Stack<Simbolo> Parametros=new Stack<Simbolo>();
+	public Simbolo(String n,int p, String a,String r,String t, String v)
+	{
+		id=n;pos=p;ambito=a;rol=r;tipo=t;valor=v;
+	}
+	public Simbolo(){}
+}
+public int BuscarSimbolo(String id)
+	{
+		for(int i=0; i<Tabla_Simbolos.size();i++)
+		{
+			Simbolo tmp=Tabla_Simbolos.get(i);
+			if(tmp.id.equals(id)&&!tmp.ambito.equals("global"))
+			{
+				return tmp.pos;
+			}
+			else if(tmp.id.equals(id))
+			{
+				return -2;
+			}
+		}
+		return -1;
+	}
+public Simbolo SeekSym(String id)
+{
+	for(int i=0; i<Tabla_Simbolos.size();i++)
+		{
+			Simbolo tmp=Tabla_Simbolos.get(i);
+			if(tmp.id.equals(id))
+			{
+				return tmp;
+			}
+		}
+		return new Simbolo();
+}
+:}
+parser code {:
+
+
+	
+    public void report_error(String message, Object info) {
+       	StringBuffer m = new StringBuffer("Error");
+		System.out.println("Mensaje: "+message);
+		System.out.println("info: "+info.toString());
+		if(info instanceof java_cup.runtime.Symbol) {
+			java_cup.runtime.Symbol s=((java_cup.runtime.Symbol)info);
+			/* Comprueba si el numero de línea es mayor o igual que cero */
+			if(s.left >= 0) {
+				m.append(" en linea "+(s.left+1));
+				/*Comprueba si el numero de columna es mayoro igual que cero */
+				if (s.right >= 0)
+					m.append(", y columna "+(s.right+1));
+			}
+		}
+		m.append(" : "+message);
+		System.err.println(m);
+    }
+    public void report_fatal_error(String message, Object info) {
+       	report_error(message, info);
+		System.exit(1);
+    }
+ 
+
+ 
+:};
+/*­­­ Declaración de la lista de símbolos de la gramática ­­­­­*/
+ 
+/* Produciones de flujo normal */
+terminal String COMA,PUNTO,TMAIN, PUNTOCOMA, DOSPUNTOS,FUNCTION, COAB, COCI, LLA, LLC, PA, PC,tint, tstring, tchar, tdouble,tbool, RETURN , BREAK , CONTINUE,  IF , THEN , ELSE ,ELSEIF , CASE, WHILE, DO, REPEAT, UNTIL , LOOP,OF , PROGRAM , PROCEDURE, VAR , USES , BEGIN, END, DOSIGUAL;
+terminal String NUMERO, ID;
+terminal String MAS, MENOS , POR , DIV, TTRUE , TFALSE, IGUALIGUAL , DIF , MAYOR , MAYORIGUAL, MENOR , MENORIGUAL;
+terminal AND, OR , XOR , NOT, IGUAL, SELECT;
+non terminal Object S0, LISTDECLA;
+non terminal Stack<String> LISTEXP,LISTID;
+non terminal String E, ExpRel;
+non terminal Stack<Logica> LISTCASE;
+non terminal Simbolo LISTPA, LIMIT,LISTDIME, LISTDIM;
+non terminal Logica ExpLog, Exp, SENTWHILE, LISTELSE,SENTLOOP, SENTDOWHILE, SENTREPEAT;
+non terminal String BLOQUE, SENTENCIA, SENTENCIAS,ASIGAUX,ASIGAUX2 ,SENTENCIAFLUJO, ASIGNACION, DECLARACION;
+non terminal String  DPROC, DFUNC, TipoDeDato, SENTRET,  LLAMADA,SENTIF,SENTIFEL,SENTIFELIF;
+non terminal String SENTCASE,  SENTBREAK, SENTCONTINUE, MAIN, MET,LISTMET;
+precedence left MAS, MENOS;
+precedence left POR , DIV;
+precedence left OR;
+precedence left XOR;
+precedence left AND;
+precedence left NOT;
+
+start with S0;
+
+S0::= PROGRAM ID:v1{:nombreprograma=v1;:} DOSPUNTOS LISTDECLA LISTMET;
+
+LISTMET::=LISTMET MET|MET;
+
+MET::=DPROC|DFUNC|MAIN;
+MAIN ::=TMAIN BLOQUE:v3
+{:
+	salida=nombreprograma+"_main_"+"void() {\n"+v3+"\n}\n";
+	System.out.println(salida);
+	:};
+
+BLOQUE::=BEGIN SENTENCIAS:v1 END{:RESULT=v1;:}|BEGIN END{:RESULT="";:};
+
+SENTENCIAS::=SENTENCIAS:v1 SENTENCIA:v2{:RESULT=v1+"\n"+v2;:}
+			|SENTENCIA:v1{:RESULT=v1;:};
+
+ASIGNACION::= ID LISTDIM DOSIGUAL Exp PUNTOCOMA
+			|ID:v1 DOSIGUAL Exp:v2 PUNTOCOMA
+			{:
+				int a=BuscarSimbolo(v1);
+				if(a>-1)
+				{
+					RESULT="t"+tmp+"=P+"+a+"\n";
+					RESULT+="Stack[t"+tmp+"]="+v2.texto+"\n";
+					//System.out.println(salida);
+					//System.out.println(RESULT);
+				}
+				else if(a==-2)
+				{
+					RESULT=v1+"="+v2;
+				}
+				:};
+
+LISTDIM::=LISTDIM COAB E COCI
+			|COAB E COCI;
+
+DECLARACION::= VAR ID:v1 OF TipoDeDato:v2 LISTDIME:v3 PUNTOCOMA
+{:
+	int tam=1;
+	for(int i=0;i<v3.inferiores.size();i++)
+	{
+		tam=(v3.superiores.get(i)-v3.inferiores.get(i))*tam;
+	}
+	v3.tam=tam;
+	v3.id=v1;v3.tipo=v2;v3.ambito=amb;v3.pos=pos;Tabla_Simbolos.add(v3);
+	//System.out.println(v3.tam);
+	pos=pos+v3.tam;
+:}
+			|VAR TipoDeDato:v1 DOSPUNTOS LISTID:v2 PUNTOCOMA
+			{:
+				while(v2.empty())
+				{
+					String idd=v2.pop();
+					Tabla_Simbolos.add(new Simbolo(idd,pos,amb,"variable",v1,""));pos++;
+					if(amb.equals("global"))
+					{
+						salida+=v1+" "+idd+";";
+					}
+				}
+					
+			:}
+				
+			;
+
+LISTDIME::=LISTDIME:v1 COAB LIMIT:v2 COCI
+{:
+	RESULT=v1;RESULT.inferiores.add(v2.inferiores.get(0));RESULT.dim++;
+	RESULT.superiores.add(v2.superiores.get(0));
+
+:}
+			|COAB LIMIT:v1 COCI
+{:
+RESULT=v1;
+:};
+LIMIT::=E:v1
+{:
+	RESULT=new Simbolo();RESULT.dim=1;
+	RESULT.inferiores.add(0);RESULT.rol="arreglo";
+	RESULT.superiores.add(Integer.parseInt(v1));:}
+|E:v1 PUNTO PUNTO E:v2
+{:
+	RESULT=new Simbolo();RESULT.dim=1;RESULT.rol="arreglo";
+	int a =Integer.parseInt(v1);
+	RESULT.inferiores.add(Integer.parseInt(v1));
+	RESULT.superiores.add(Integer.parseInt(v2));
+:};
+LISTDECLA::=LISTDECLA DECLARACION|;
+
+LISTID::= LISTID:v2 COMA ID:v1{:RESULT=v2;RESULT.push(v1);:}
+|ID:v1{:RESULT=new Stack<String>();RESULT.push(v1);:};
+
+DPROC::= PROCEDURE ID:v1 PA {:pos =0;amb=v1;:}LISTPA:v2 PC  LISTDECLA
+{:
+	v2.id=v1;v2.tam=pos;v2.tipo="void";v2.rol="procedimiento";
+	Tabla_Simbolos.add(v2);
+	:} BLOQUE:v3
+{:
+	salida+=nombreprograma+"_"+v1+"_"+"void() {\n"+v3+"\n}\n";
+	
+:}
+
+		|PROCEDURE ID:v1 PA PC {:pos=0; amb=v1;:} LISTDECLA 
+		{:
+			Simbolo v2=new Simbolo();
+	v2.id=v1;v2.tam=pos;v2.tipo="void";v2.rol="procedimiento";
+	Tabla_Simbolos.add(v2);
+			:}BLOQUE:v3
+{:
+	salida+=nombreprograma+"_"+v1+"_"+"void() {\n"+v3+"\n}\n";
+:};
+
+DFUNC::= FUNCTION TipoDeDato:v0 DOSPUNTOS ID:v1 PA {:pos=1; amb=v1;:}LISTPA:v2 PC LISTDECLA 
+{:
+	v2.id=v1;v2.tam=pos;v2.tipo=v0;v2.rol="funcion";
+	Tabla_Simbolos.add(v2);
+	:} 
+BLOQUE:v3
+{:
+	salida+=nombreprograma+"_"+v1+"_"+v0+"() {\n"+v3+"\n}\n";
+	
+:}
+		|FUNCTION TipoDeDato:v0 DOSPUNTOS ID:v1 PA PC {:pos=1; amb=v1;:}LISTDECLA 
+		{:
+			Simbolo v2=new Simbolo();
+	v2.id=v1;v2.tam=pos;v2.tipo=v0;v2.rol="funcion";
+	Tabla_Simbolos.add(v2);
+	:} BLOQUE:v3
+	{:
+	salida+=nombreprograma+"_"+v1+"_"+v0+"() {\n"+v3+"}\n";
+	
+:};
+
+
+LISTPA::= LISTPA:v3 COMA TipoDeDato:v1 DOSPUNTOS ID:v2{:
+				RESULT=v3;pos++;
+				Simbolo m=new Simbolo();m.id=v2;m.tipo=v1;
+				RESULT.Parametros.push(m);
+				:}
+			|TipoDeDato:v1 DOSPUNTOS ID:v2
+			{:pos++;
+				RESULT=new Simbolo();
+				Simbolo m=new Simbolo();m.id=v2;m.tipo=v1;
+				RESULT.Parametros.push(m);
+				:};
+
+
+SENTRET::= RETURN Exp:v1 PUNTOCOMA
+{:
+	RESULT="t"+tmp+"=P+0\n";
+	RESULT+="Stack[t"+tmp+"]="+v1.texto+"\n";tmp++;
+	:}
+	| RETURN PUNTOCOMA{:RESULT="RET;";:};
+
+
+LISTEXP::=LISTEXP:v1 COMA E:v2{:RESULT=v1;RESULT.push(v2);:}
+		|E:v1{:RESULT=new Stack<String>();RESULT.push(v1);:};
+
+LLAMADA::= ID:v1 PA LISTEXP:v2 PC PUNTOCOMA
+{:
+	RESULT=salida;salida="";
+	Simbolo sym=SeekSym(v1);
+	int ini=0;
+	if(sym.rol.equals("funcion"))
+	{
+		ini=1;
+	}
+	while(!v2.empty())
+	{
+		RESULT+="t"+tmp+"=P+"+ini+"\n";
+		RESULT+="Stack[t"+tmp+"]="+v2.pop()+"\n";ini++;tmp++;
+	}
+	RESULT+="P=P+"+pos;
+	RESULT+="\ncall "+nombreprograma+"_"+v1+"_"+sym.tipo+";\n";
+	RESULT+="P=P-"+pos;
+
+:}
+			|ID:v1 PA PC PUNTOCOMA
+			{:
+				Simbolo sym=SeekSym(v1);
+				RESULT+="P=P="+pos;
+				RESULT+="\ncall "+nombreprograma+"_"+v1+"_"+sym.tipo+";\n";
+				RESULT+="P=P-"+pos;
+				:};
+
+TipoDeDato::=tint:v1{:RESULT=v1;:}|tstring:v1{:RESULT=v1;:}|tchar:v1{:RESULT=v1;:}|tbool:v1{:RESULT=v1;:};
+SENTIF::= IF PA Exp:v1 PC THEN BLOQUE:v2
+{:	
+	RESULT=v1.texto+"\n"+v1.Verdaderas+"\n";
+	RESULT+=v2+"\n"+v1.Falsas;
+	//System.out.println(RESULT);
+	:};
+SENTIFEL::= IF PA Exp:v1 PC THEN BLOQUE:v2 ELSE BLOQUE:v3
+{:
+
+	RESULT=v1.texto+"\n"+v1.Verdaderas+"\n";
+	RESULT+=v2+"\ngoto L"+l+"\n"+v1.Falsas+"\n"+v3+"\nL"+l+":\n";l++;
+	//System.out.println(RESULT);
+	:};
+SENTIFELIF::= IF PA Exp:v1 PC THEN BLOQUE:v2 LISTELSE:v3
+{:
+	RESULT=v1.texto+"\n"+v1.Verdaderas+"\n";
+	RESULT+=v2+"\ngoto L"+l+"\n"+v1.Falsas+"\n"+v3.texto+v3.Falsas+"L"+l+":\n";l++;
+	//System.out.println(RESULT);
+	:};
+
+LISTELSE::= LISTELSE:v3 ELSEIF PA Exp:v1 PC THEN BLOQUE:v2
+{:RESULT=new Logica();
+				RESULT.texto=v3.texto+"\n";
+				RESULT.texto+=v1.texto+"\n"+v1.Verdaderas+"\n";
+				RESULT.texto+=v2+"\ngoto L"+l+"\n"+v1.Falsas+"\n"+RESULT.Falsas;
+				RESULT.Falsas=v3+"L"+l+":\n";l++;
+				:}
+
+			|LISTELSE:v1 ELSE BLOQUE:v2
+			{:RESULT=new Logica();RESULT.texto=v1.texto+""+v2+"\n"+v1.Falsas;RESULT.Falsas="";:}
+			|ELSEIF PA Exp:v1 PC THEN BLOQUE:v2
+			{:RESULT=new Logica();
+				RESULT.texto=v1.texto+"\n"+v1.Verdaderas+"\n";
+				RESULT.texto+=v2+"\ngoto L"+l+"\n"+v1.Falsas+"\n";RESULT.Falsas="L"+l+":\n";l++;
+				:};
+
+SENTCASE::= SELECT{:RESULT="L"+l+":\n";Lbreak.push("goto L"+l);l++;:} CASE E:v1 OF LISTCASE:v2 END
+{:
+	
+	String condiciones="";
+	String bloques="";
+	while(!v2.empty())
+	{
+		Logica tmp=v2.pop();
+		if(tmp.Falsas.equals("1"))
+		{
+			condiciones+="if (1) goto L"+l+"\n";
+			bloques+="L"+l+":\n"+tmp.texto+"\n";l++;
+		}
+		else 
+		{
+			condiciones+="if ("+v1+"=="+tmp.Verdaderas+") goto L"+l+"\n";
+			bloques+="L"+l+":\n"+tmp.texto+"\n";l++;
+		}
+		
+	}
+	RESULT=condiciones+""+bloques+"\n"+RESULT;
+	Lbreak.pop();
+	//System.out.println(RESULT);
+	:};
+
+
+LISTCASE::= LISTCASE:v1 E:v2 DOSPUNTOS BLOQUE:v3
+{:RESULT=v1;
+	Logica a=new Logica(); a.Verdaderas=v2; a.texto=v3;RESULT.push(a);
+:}
+			|E:v2 DOSPUNTOS BLOQUE:v3
+{:RESULT=new Stack<Logica>();
+	Logica a=new Logica(); a.Verdaderas=v2; a.texto=v3;RESULT.push(a);
+:}
+			|LISTCASE:v1 ELSE DOSPUNTOS BLOQUE:v3
+{:RESULT=v1;
+	Logica a=new Logica(); a.Falsas="1"; a.texto=v3;RESULT.push(a);
+:}			
+			|ELSE DOSPUNTOS BLOQUE:v3
+{:RESULT=new Stack<Logica>();
+	Logica a=new Logica(); a.Falsas="1"; a.texto=v3;RESULT.push(a);
+:}
+			;
+SENTBREAK::=BREAK PUNTOCOMA{:RESULT=Lbreak.pop();Lbreak.push(RESULT);:};
+SENTCONTINUE::=CONTINUE PUNTOCOMA{:RESULT=Lcontinue.pop();Lcontinue.push(RESULT);:};
+SENTWHILE::= WHILE{:
+	RESULT=new Logica();RESULT.texto="L"+l+":\n";
+	RESULT.Verdaderas="L"+l;l++;
+	Lcontinue.push("goto "+RESULT.Verdaderas);
+	RESULT.Falsas="L"+l;l++;
+	Lbreak.push("goto "+RESULT.Falsas);
+:} PA Exp:v1 PC DO BLOQUE:v2
+{:
+	RESULT.texto+=salida;salida="";
+	RESULT.texto+=v1.texto+"\n"+v1.Verdaderas+"\n";
+	RESULT.texto+=v2+"\ngoto "+RESULT.Verdaderas+"\n"+v1.Falsas+RESULT.Falsas+":\n";
+	//System.out.println(RESULT.texto);
+	:};
+SENTDOWHILE::= DO
+{:
+	RESULT=new Logica();RESULT.texto="L"+l+":\n";
+	RESULT.Verdaderas="L"+l;l++;
+	Lcontinue.push("goto "+RESULT.Verdaderas);
+	RESULT.Falsas="L"+l;l++;
+	Lbreak.push("goto "+RESULT.Falsas);
+	:} BLOQUE:v1 WHILE PA Exp:v2 PC
+	{:
+	RESULT.texto+=salida;salida="";
+	RESULT.texto+=v1+"\n"+v2.texto+"\n";
+	RESULT.texto+=v2.Verdaderas+"\ngoto "+RESULT.Verdaderas+"\n"+v2.Falsas+RESULT.Falsas+":\n";
+	//System.out.println(RESULT.texto);
+	:};
+SENTREPEAT::= REPEAT{:
+	RESULT=new Logica();RESULT.texto="L"+l+":\n";
+	RESULT.Verdaderas="L"+l;l++;
+	Lcontinue.push("goto "+RESULT.Verdaderas);
+	RESULT.Falsas="L"+l;l++;
+	Lbreak.push("goto "+RESULT.Falsas);
+	:} BLOQUE:v1 UNTIL PA Exp:v2 PC{:
+	RESULT.texto+=salida;salida="";
+	RESULT.texto+=v1+"\n"+v2.texto+"\n";
+	RESULT.texto+=v2.Falsas+"\ngoto "+RESULT.Verdaderas+"\n"+v2.Verdaderas+RESULT.Falsas+":\n";
+	//System.out.println(RESULT.texto);
+	:};
+SENTLOOP::= LOOP 
+{:RESULT=new Logica();RESULT.texto="L"+l+":\n";
+	RESULT.Verdaderas="L"+l;l++;
+	Lcontinue.push("goto "+RESULT.Verdaderas);
+	RESULT.Falsas="L"+l;l++;
+	Lbreak.push("goto "+RESULT.Falsas);
+	:}BLOQUE:v1
+	{:
+		RESULT.texto+=salida;salida="";
+		RESULT.texto+=v1;
+		RESULT.texto+="\ngoto "+RESULT.Verdaderas+"\n"+RESULT.Falsas+":\n";
+		System.out.println(RESULT.texto);
+		Lbreak.pop();Lcontinue.pop();
+		:};
+SENTENCIA::= SENTENCIAFLUJO:v1{:RESULT=v1;:}|SENTRET:v2{:RESULT=v2;:}|ASIGNACION:v2{:RESULT=v2;:}|LLAMADA:v1{:RESULT=v1;:};
+SENTENCIAFLUJO::=SENTIF:v1{:RESULT=v1;:}|SENTWHILE:v2{:RESULT=v2.texto;:}
+				|SENTDOWHILE:v3|SENTLOOP:v4|SENTREPEAT:v5|SENTCONTINUE:v6{:RESULT=v6;:}
+				|SENTBREAK:v7{:RESULT=v7;:};
+
+
+Exp::=E:v1{:RESULT=new Logica();RESULT.texto=v1;:}|ExpLog:v1{:RESULT=v1;:};
+
+E ::=  NUMERO:v1 {:RESULT=v1;:}
+      |ID :v1 
+      {:
+      	int a=BuscarSimbolo(v1);
+				if(a>-1)
+				{
+					salida+="t"+tmp+"=P+"+a+"\n";
+					salida+="t"+(tmp+1)+"=Stack[t"+tmp+"]\n";tmp++;
+					RESULT="t"+tmp;tmp++;
+				}
+				else if(a==-2)
+				{
+					RESULT=v1;
+				}
+      	
+      :}
+      |LLAMADA:v1
+      {:
+      	salida+=v1+"\n";
+      	salida+="t"+tmp+"=P+"+pos+"\nt"+(tmp+1)+"=Stack[t"+tmp+"]\n";tmp=tmp+2;
+      	RESULT="t"+(tmp-1);
+      	//System.out.println("-------\n"+salida+RESULT+"\n--------------");
+      	:}
+      |PA E:v1 PC {:RESULT=v1;:}
+      |E:v1 MAS E:v2
+      {:
+      	salida+="t"+tmp+"="+v1+"+"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} 
+      |E:v1 MENOS E:v2 {:
+      	salida+="t"+tmp+"="+v1+"-"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} 
+      |E:v1 POR E:v2 {:
+      	salida+="t"+tmp+"="+v1+"*"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} 
+      |E:v1 DIV E:v2 {:
+      	salida+="t"+tmp+"="+v1+"/"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:}; 
+
+ExpRel::=
+        TTRUE{:RESULT="1";:}
+        |TFALSE{:RESULT="0";:}
+        |E:v1 IGUALIGUAL E:v2
+        {:
+      	salida+="t"+tmp+"="+v1+"=="+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} 
+                      
+        |E:v1 DIF    E:v2{:
+      	salida+="t"+tmp+"="+v1+"!="+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:}    
+        |E:v1 MAYOR  E:v2
+        {:
+      	salida+="t"+tmp+"="+v1+">"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} 
+        |E:v1 MAYORIGUAL E:v2{:
+      	salida+="t"+tmp+"="+v1+">="+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:}  
+        |E:v1 MENOR   E:v2
+        {:
+      	salida+="t"+tmp+"="+v1+"<"+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:}    
+        |E:v1 MENORIGUAL E:v2 {:
+      	salida+="t"+tmp+"="+v1+"<="+v2+"\n";
+      	RESULT="t"+tmp;tmp++;:} ;
+
+ExpLog::=
+      
+      ExpLog:v1 AND ExpLog:v2
+      {:
+      		String tt=v1.texto+"\n"+v1.Verdaderas+"\n"+v2.texto+"\n";
+      		String tv=v2.Verdaderas;
+      		String tf= v1.Falsas+v2.Falsas;
+      		RESULT=new Logica(tv,tf,tt);
+      :}
+      |ExpLog:v1  OR  ExpLog:v2
+      {:
+      		String tt=v1.texto+"\n"+v1.Falsas+"\n"+v2.texto+"\n";
+      		String tv=v1.Verdaderas+v2.Verdaderas;
+      		String tf= v2.Falsas;
+      		RESULT=new Logica(tv,tf,tt);
+      :}
+      |ExpLog:v1  XOR{:LogXor=new Logica();:} ExpLog:v2
+      {:
+      		String tt=v1.texto+"\n"+v1.Verdaderas+"\n"+v2.texto+"\n";
+      		tt+=v1.Falsas+"\n"+LogXor.texto+"\n";
+      		String tv=v2.Falsas+LogXor.Verdaderas;
+      		String tf= LogXor.Falsas+v2.Verdaderas;
+      		RESULT=new Logica(tv,tf,tt);
+      		LogXor=null;
+      :}
+
+      |NOT ExpLog:v1{:RESULT=new Logica(v1.Falsas,v1.Verdaderas,v1.texto);:}
+      |PA ExpLog:v1 PC{:RESULT=v1;:}  
+      |ExpRel:v1 
+      {:
+      		String tt="if("+v1+") goto L"+l+"\n";
+      		tt+="goto L"+(l+1);
+      		String tv="L"+l+":";
+      		String tf="L"+(l+1)+":";
+      		l=l+2;RESULT=new Logica(tv,tf,tt);
+      		if(LogXor!=null)
+      		{
+      			String tt1="if("+v1+") goto L"+l+"\n";
+      			tt1+="goto L"+(l+1);
+      			String tv1="L"+l+":";
+      			String tf1="L"+(l+1)+":";
+      			l=l+2;LogXor=new Logica(tv1,tf1,tt1);
+      		}
+      	:};
